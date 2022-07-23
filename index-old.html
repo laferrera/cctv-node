@@ -1,0 +1,206 @@
+<link rel="stylesheet" type="text/css" media="all" href="css/main.css"></link>
+<script type="text/javascript" src="js/p5.min.js"></script>
+
+<input type="text" onkeyup="updateText(this)"/>
+
+<script>
+
+
+    let capture;
+
+    function setup() {
+        createCanvas(390, 240);
+        capture = createCapture(VIDEO);
+        capture.size(320, 240);
+        //capture.hide();
+    }
+
+    function draw() {
+        background(255);
+        image(capture, 0, 0, 320, 240);
+        filter(INVERT);
+    }
+
+
+
+
+
+
+let nIntervId = null;
+let grid = [];
+for (let y = 0; y < 8; y++) {
+    grid[y] = [];
+    for (let x = 0; x < 16; x++) {
+        grid[y][x] = 0;
+    }
+}
+
+function tableCreate() {
+    var body = document.getElementsByTagName('body')[0];
+    var tbl = document.createElement('table');
+    // tbl.style.width = '100%';
+    // tbl.setAttribute('border', '1');
+    var tbdy = document.createElement('tbody');
+    for (var i = 0; i < 8; i++) {
+        var tr = document.createElement('tr');
+        for (var j = 0; j < 16; j++) {
+            var td = document.createElement('td');
+            td.appendChild(document.createTextNode('■'))
+            // i == 1 && j == 1 ? td.setAttribute('rowSpan', '2') : null;
+            tr.appendChild(td)
+        }
+        tbdy.appendChild(tr);
+    }
+    tbl.appendChild(tbdy);
+    body.appendChild(tbl)
+}
+tableCreate();
+
+mytablebody = document.getElementsByTagName("tbody")[0];
+
+function clearGrid() {
+    Array.from(document.getElementsByTagName("td")).forEach(td => td.innerHTML = " ");
+    fetch("/api/grid/clear", { method: "POST", headers: { 'Content-Type': 'application/json' } })
+}
+
+function updateGridIndividual(x,y,b) {
+    fetch("/api/grid/set_individual", {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: x, y: y, b: b })
+    }).then(res => {
+        console.log("Request complete! response:", res);
+    });
+}
+
+function updateGridXY() {
+    let x = document.getElementById('x').value
+    let y = document.getElementById('y').value
+    let b = 15
+    updateGridIndividual(x,y,b);
+}
+
+// function bitmapToGrid(bitmap) {
+//     for (let y = 0; y < 8; y++) {
+//         for (let x = 0; x < 16; x++) {
+//             if (bitmap[y][x] == 1) {
+//                 updateGridIndividual(x,y,15);
+//             }
+//         }
+//     }
+// }
+
+function sendBitmapToGrid (bitmap) {
+    fetch("/api/grid/set_grid", {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grid: bitmap })
+    }).then(res => {
+        console.log("Request complete! response:", res);
+    });
+}
+
+function concateBitmaps(bitmap1, bitmap2) {
+    let newBitmap = []
+    let numOfRows = Math.max(bitmap1.length, bitmap2.length)
+
+    for (let y = 0; y < numOfRows; y++) {
+        bitmap1Row = bitmap1.length > y ? bitmap1[y] : '0'.repeat(bitmap1[0].length)
+        bitmap2Row = bitmap2.length > y ? bitmap2[y] : '0'.repeat(bitmap2[0].length)
+        newBitmap[y] = bitmap1Row + bitmap2Row
+    }
+    return newBitmap
+}
+
+function updateGridLetter(e) {
+    clearGrid();
+    let char = e.value;
+    bitmap = chars[char].bitmap;
+    sendBitmapToGrid(bitmap);
+    for (let i = 0; i < bitmap.length; i++) {
+        let row = bitmap[i];
+        for (let j = 0; j < row.length; j++) {
+            myrow = mytablebody.getElementsByTagName("tr")[i];
+            mycel = myrow.getElementsByTagName("td")[j];
+            let fill = " "
+            row[j] > 0 ? fill = "■" : fill = " ";
+            mycel.innerHTML = fill;
+        }
+    }
+}
+
+function updateHTMLGrid(grid) {
+    for (let i = 0; i < grid.length; i++) {
+        let row = grid[i];
+        console.log("row is: ", i)
+        for (let j = 0; j < row.length; j++) {
+            myrow = mytablebody.getElementsByTagName("tr")[i];
+            mycel = myrow.getElementsByTagName("td")[j];
+            let fill = " ";
+            row[j] > 0 ? fill = "■" : fill = " ";
+            mycel.innerHTML = fill;
+        }
+    }
+}
+
+function helloWorld() {
+    curCharIndex = 0;
+    let text = "Hello World!"
+     setInterval(() => {
+        curCharIndex = curCharIndex % text.length;
+        let curChar = text[curCharIndex];
+        console.log(`sending char: ${curChar}`);
+        let bitmap = chars[curChar].bitmap;
+        sendBitmapToGrid(bitmap);
+        curCharIndex++;
+    }, 500);
+}
+
+function helloWord(word) {
+    curPlayheadIndex = 0;
+    let bigGrid = [[]]
+    let text = word.toString();
+    for (var i = 0; i < text.length; i++) {
+        let curChar = text[i];
+        let bitmap = chars[curChar].bitmap;
+        bigGrid = concateBitmaps(bigGrid, bitmap);
+    }
+    if(bigGrid[0].length > 16){
+        // double it up & scroll it
+        bigGrid = concateBitmaps(bigGrid, bigGrid);
+        nIntervId = setInterval(() => {
+        console.log(`current playhead at ${curPlayheadIndex}`);
+        let bitmap = [];
+        bigGrid.forEach(row => {
+            let substringRow = row.substring(curPlayheadIndex, curPlayheadIndex + 16);
+            bitmap.push(substringRow)
+        })
+        sendBitmapToGrid(bitmap);
+        updateHTMLGrid(bitmap);
+
+        curPlayheadIndex++;
+        curPlayheadIndex = curPlayheadIndex % parseInt(bigGrid[0].length / 2);
+    }, 200);
+
+    } else {
+        sendBitmapToGrid(bigGrid);
+        updateHTMLGrid(bigGrid);
+    }
+
+
+
+
+}
+
+function updateText(e) {
+    clearGrid();
+    clearInterval(nIntervId);
+    let text = e.value;
+    helloWord(text);
+}
+
+
+
+</script>
+
+<script src="js/characterOutput.js"></script>

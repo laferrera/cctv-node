@@ -1,0 +1,30 @@
+
+//- https://auth0.com/blog/create-a-simple-and-stylish-node-express-app/
+extends layout
+block additional-head 
+    //- script(src='/javascripts/example.js')
+
+block layout-content
+  div.View
+    h1.Banner Jason wuz here
+    div.Message
+      div.Title
+        h3 Please work.
+        h1 this is an h1
+      span.Details this is all dumb
+    div.NavButtons
+      a(href="/")
+          div.NavButton anchor
+
+  form(action="/api/grid", method="post")
+    input(type="number", name="num1")
+    input(type="number", name="num2")
+    button(type="submit") Submit
+
+
+
+    script
+      var grid = !{JSON.stringify(grid)};
+      //- #{grid}
+       var grid = !{JSON.stringify(grid)};
+
