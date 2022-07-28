@@ -1,7 +1,7 @@
 <head>
 <link rel="stylesheet" type="text/css" media="all" href="css/main.css"></link>
 <script type="text/javascript" src="js/p5.min.js"> </script>
-
+<script type="text/javascript" src="js/p5.vida.min.js"> </script>
 <style>
     .p5Canvas{
         /* width: 320px !important;
@@ -34,19 +34,33 @@
         displayStill = createImage(16, 8);
         cam.hide();
         noStroke();
-        // myVida = new Vida(this); // create the object
-        // myVida.progressiveBackgroundFlag = false;
-        // myVida.imageFilterThreshold = 0.1;
+        myVida = new Vida(this); // create the object
+        myVida.progressiveBackgroundFlag = true;
+        // myVida.imageFilterFeedback = 0.92;
+        myVida.imageFilterThreshold = 0.15;
 
     }
 
+    function touchEnded() {
+            if (cam !== null && cam !== undefined) { // safety first
+                myVida.setBackgroundImage(cam);
+                console.log('background set');
+            }
+        }
+
     function draw() {
         background(0);
-        cam.loadPixels();
-        camStill = cam.get(0, 0, 320, 160);
+        // cam.loadPixels();
+        myVida.update(cam);
+        // camStill = cam.get(0, 0, 320, 160);
+        // camStill.resize(16, 8);
+        // camStill.filter(GRAY);
+        // camStill.filter(POSTERIZE, 16);
+
+
+        // camStill = myVida.differenceImage;
+        camStill = myVida.thresholdImage;
         camStill.resize(16, 8);
-        camStill.filter(GRAY);
-        camStill.filter(POSTERIZE, 16);
         
         for (let x = 0; x < 16; x++) {
             for (let y = 0; y < 8; y++) {
@@ -57,9 +71,10 @@
             }
         }
         sendBitmapToGrid(grid);
-        camStill.resizeNN(640, 320);
+        // camStill.resizeNN(640, 320);
+        camStill.resizeNN(320, 160);
         image(camStill, 0, 0, 640, 320);
-        // updatePixels();
+        updatePixels();
     }
 
 
@@ -85,7 +100,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ grid: bitmap })
         }).then(res => {
-            console.log("Request complete! response:", res);
+            // console.log("Request complete! response:", res);
         });
     }
 
