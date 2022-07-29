@@ -1,0 +1,157 @@
+<head>
+<link rel="stylesheet" type="text/css" media="all" href="css/main.css"></link>
+<script type="text/javascript" src="js/p5.min.js"> </script>
+<script type="text/javascript" src="js/p5.vida.min.js"> </script>
+<style>
+    .p5Canvas{
+        /* width: 320px !important;
+        height: 160px !important; */
+    }
+</style>
+
+<script>
+
+    // Variable for webcam
+    let cam;
+    let grid = [];
+    for (let y = 0; y < 8; y++) {
+        grid[y] = [];
+        for (let x = 0; x < 16; x++) {
+            grid[y][x] = 0;
+        }
+    }
+
+    function setup() {
+        createCanvas(640, 320);
+        frameRate(10);
+        // Set the pixel density to 1
+        pixelDensity(1);
+        // Get the webcam feed
+        cam = createCapture(VIDEO);
+        cam.size(320, 160);
+        // Hide the DOM element for the image <video>
+        camStill = createImage(16, 8);
+        displayStill = createImage(16, 8);
+        cam.hide();
+        noStroke();
+        myVida = new Vida(this); // create the object
+        myVida.progressiveBackgroundFlag = true;
+        // myVida.imageFilterFeedback = 0.92;
+        myVida.imageFilterThreshold = 0.15;
+
+    }
+
+    function touchEnded() {
+            if (cam !== null && cam !== undefined) { // safety first
+                myVida.setBackgroundImage(cam);
+                console.log('background set');
+            }
+        }
+
+    function draw() {
+        background(0);
+        // cam.loadPixels();
+        myVida.update(cam);
+        // camStill = cam.get(0, 0, 320, 160);
+        // camStill.resize(16, 8);
+        // camStill.filter(GRAY);
+        // camStill.filter(POSTERIZE, 16);
+
+
+        // camStill = myVida.differenceImage;
+        camStill = myVida.thresholdImage;
+        camStill.resize(16, 8);
+        
+        for (let x = 0; x < 16; x++) {
+            for (let y = 0; y < 8; y++) {
+                // [r,g,b,a]
+                let colorFromVideo = camStill.get(x,y);
+                // set(x, y, colorFromVideo); // set the pixel to the color of the video
+                grid[y][x] = parseInt(brightness(colorFromVideo)/15);
+            }
+        }
+        sendBitmapToGrid(grid);
+        // camStill.resizeNN(640, 320);
+        camStill.resizeNN(320, 160);
+        image(camStill, 0, 0, 640, 320);
+        updatePixels();
+    }
+
+
+    // let capture;
+
+    // function setup() {
+    //     createCanvas(320, 160);
+    //     capture = createCapture(VIDEO);
+    //     capture.size(320, 240);
+    //     capture.hide();
+    // }
+
+    // function draw() {
+    //     background(255);
+    //     image(capture, 0, 0, 320, 160);
+    //     filter(GRAY);
+    //     filter(POSTERIZE, 16);
+    // }
+
+    function sendBitmapToGrid(bitmap) {
+        fetch("/api/grid/set_grid", {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grid: bitmap })
+        }).then(res => {
+            // console.log("Request complete! response:", res);
+        });
+    }
+
+    p5.Image.prototype.resizeNN = function (w, h) {
+        "use strict";
+
+        // Locally cache current image's canvas' dimension properties:
+        const { width, height } = this.canvas;
+
+        // Sanitize dimension parameters:
+        w = ~~Math.abs(w), h = ~~Math.abs(h);
+
+        // Quit prematurely if both dimensions are equal or parameters are both 0:
+        if (w === width && h === height || !(w | h)) return this;
+
+        // Scale dimension parameters:
+        if (!w) w = h * width / height | 0; // only when parameter w is 0
+        if (!h) h = w * height / width | 0; // only when parameter h is 0
+
+        const img = new p5.Image(w, h), // creates temporary image
+            sx = w / width, sy = h / height; // scaled coords. for current image
+
+        this.loadPixels(), img.loadPixels(); // initializes both 8-bit RGBa pixels[]
+
+        // Create 32-bit viewers for current & temporary 8-bit RGBa pixels[]:
+        const pixInt = new Int32Array(this.pixels.buffer),
+            imgInt = new Int32Array(img.pixels.buffer);
+
+        // Transfer current to temporary pixels[] by 4 bytes (32-bit) at once:
+        for (var x = 0, y = 0; y < h; x = 0) {
+            const curRow = width * ~~(y / sy), tgtRow = w * y++;
+
+            while (x < w) {
+                const curIdx = curRow + ~~(x / sx), tgtIdx = tgtRow + x++;
+                imgInt[tgtIdx] = pixInt[curIdx];
+            }
+        }
+
+        img.updatePixels(); // updates temp 8-bit RGBa pixels[] w/ its current state
+
+        // Resize current image to temporary image's dimensions:
+        this.canvas.width = this.width = w, this.canvas.height = this.height = h;
+        this.drawingContext.drawImage(img.canvas, 0, 0, w, h, 0, 0, w, h);
+
+        return this;
+    };
+
+</script>
+
+<script src="js/characterOutput.js"></script>
+</head>
+<body>
+    dingus
+</body>

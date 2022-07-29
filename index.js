@@ -80,16 +80,18 @@ app.post("/api/grid/set_individual", (req, res) => {
 app.post("/api/grid/set_grid", (req, res) => {
 
     let incomingGrid = req.body.grid;
-    console.log(`incoming grid: ${incomingGrid}`);
+    // console.log(`incoming grid: ${incomingGrid}`);
     let myGrid = { ...blankLed };
     clearGridMatrix(myGrid);
 
+    let s = 0;
     incomingGrid.forEach(function(row, y) {
         for (var i = 0; i < row.length; i++) {
             myGrid[y][i] = Number(incomingGrid[y][i]);
+            s = myGrid[y][i];
+            emitter.emit('/grid_key_press', i, y, s);
         }
     });
-    console.log(`setting grid:`);
     grid.refresh(myGrid);
     res.send("set the grid");
 });
@@ -106,6 +108,10 @@ app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, '/index.html'));
 });
 
+app.get("/sin", (req, res) => {
+    res.sendFile(path.join(__dirname, '/sine-test.html'));
+});
+
 /**
  * Server Activation
  */
@@ -114,10 +120,12 @@ async function run() {
     grid = await monomeGrid();
 
     grid.key((x, y, s) => {
+        s = s * 15;
+        led[y][x] = s;
         console.log(`x: ${x}, y: ${y}, s: ${s}`);
-        led[y][x] = s * 15;
         grid.refresh(led);
-        emitter.emit('/grid_key_press', x, y);
+        emitter.emit('/grid_key_press', x, y, s);
+        
     })
 }
 
